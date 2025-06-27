@@ -10,7 +10,7 @@
 
 ## Desarrollar un juego utilizando Pygame
 
-El proyecto final consiste en realizar un *fork* del repositorio de GitHub donde se encuentra este archivo y, a partir de él, desarrollar un juego en el que el jugador debe interactuar con uno o más agentes en un entorno competitivo hasta ganar o perder. El juego debe incluir al menos un **Árbol de Comportamiento** y un algoritmo **A\***.
+El proyecto final consiste en realizar un _fork_ del repositorio de GitHub donde se encuentra este archivo y, a partir de él, desarrollar un juego en el que el jugador debe interactuar con uno o más agentes en un entorno competitivo hasta ganar o perder. El juego debe incluir al menos un **Árbol de Comportamiento** y un algoritmo **A\***.
 
 ### Detalles:
 
@@ -20,6 +20,7 @@ El proyecto final consiste en realizar un *fork* del repositorio de GitHub donde
 - Deberá presentar el juego a personas que lo probarán frente a usted. Además, deberá explicar cómo funciona su proyecto y cómo está implementada la inteligencia artificial en él.
 
 - También deberá subir un video de su juego explicando cómo lo desarrolló, el funcionamiento de los algoritmos en profundidad y mostrando cómo se juega.
+
   - El video debe estar en formato **MP4**.
   - Evite subir videos de **15 minutos que pesen 4 GB**.
   - En el video debe aparecer usted en cámara explicando su proyecto mientras muestra el código y el juego en funcionamiento.
@@ -58,15 +59,17 @@ Más lo que ya incluía el repositorio original.
 - El juego debe incluir **sprites**, que pueden ser descargados de Internet, tomados de juegos famosos, hechos por usted o generados con inteligencia artificial.
 
 - El juego debe contar con un **menú** que permita:
+
   - **Iniciar el juego**
   - **Reiniciar la partida** al terminar o perder
 
 - El **rendimiento del juego será evaluado**.
   Si el rendimiento es deficiente, se aplicarán penalizaciones.
 
-- Su juego debe estar en un repositorio de **GitHub** y debe contar con el historial de *commits* correspondiente al proyecto.
+- Su juego debe estar en un repositorio de **GitHub** y debe contar con el historial de _commits_ correspondiente al proyecto.
+
   - Se evaluará el historial en caso de encontrar irregularidades.
-  - Se recomienda hacer *commits* con cada funcionalidad y cambio, con mensajes descriptivos.
+  - Se recomienda hacer _commits_ con cada funcionalidad y cambio, con mensajes descriptivos.
 
   - Utilizar git para el proyecto es obligatorio, si sube archivos manualmente al repositorio no se va a evaluar su proyecto y la calificación será **0**.
 
@@ -78,6 +81,7 @@ Más lo que ya incluía el repositorio original.
 ### Formato de entrega:
 
 - El proyecto debe subirse en un **archivo ZIP** a la plataforma que incluya:
+
   - Un **archivo de texto plano** con su **nombre, matrícula y el enlace al repositorio de GitHub**.
   - El **video con las explicaciones**.
 
@@ -87,6 +91,7 @@ Más lo que ya incluía el repositorio original.
 
 - Debe contener los scripts de Python, imágenes, sonidos o cualquier recurso necesario para ejecutar el proyecto.
 - Debe incluir un archivo `requirements.txt` con las librerías utilizadas.
+
   - Este archivo permite instalar todas las dependencias con un solo comando.
   - **Si no sabe qué es `requirements.txt`, investigue.**
     No envíe un PDF con las librerías, ni un archivo que diga "las librerías usadas son:".
