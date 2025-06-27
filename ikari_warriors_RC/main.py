@@ -4,8 +4,9 @@
 
 import pygame
 import sys
-
+from scripts.game import Game
 from scripts.utils.constants import SCREEN_WIDTH, SCREEN_HEIGHT, FPS, TITLE
+
 def main():
     # Inicializar Pygame
     pygame.init()
@@ -15,6 +16,10 @@ def main():
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption(TITLE)
     clock = pygame.time.Clock()
+
+    # Configurar la ventana
+    game=Game(screen)
+     
     
     # Bucle principal
     running = True
@@ -31,7 +36,7 @@ def main():
                     running = False
         
         # Actualizar y dibujar
-        game.update(dt, events)
+        game.update(dt,events)
         game.draw()
         
         pygame.display.flip()
