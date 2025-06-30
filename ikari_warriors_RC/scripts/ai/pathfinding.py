@@ -17,12 +17,22 @@ class Node:
         
         self.parent = None  # Nodo padre para reconstruir el camino
         
+    def reset(self):
+        """Reinicia los valores del nodo para un nuevo pathfinding"""
+        self.g_cost = float('inf')
+        self.h_cost = 0
+        self.f_cost = float('inf')
+        self.parent = None
+        
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
     
     def __lt__(self, other):
         """Para comparación en la cola de prioridad"""
         return self.f_cost < other.f_cost
+    
+    def __hash__(self):
+        return hash((self.x, self.y))
     
     def __repr__(self):
         return f"Node({self.x}, {self.y})"
@@ -60,6 +70,12 @@ class Grid:
         node = self.get_node(x, y)
         if node:
             node.walkable = walkable
+    
+    def reset_nodes(self):
+        """Reinicia todos los nodos para un nuevo pathfinding"""
+        for row in self.nodes:
+            for node in row:
+                node.reset()
     
     def get_neighbors(self, node: Node) -> List[Node]:
         """Obtiene los vecinos caminables de un nodo"""
@@ -113,11 +129,19 @@ class AStar:
         Encuentra el camino más corto entre dos posiciones del mundo
         Retorna una lista de coordenadas de grid (x, y)
         """
+        # Reiniciar nodos
+        self.grid.reset_nodes()
+        
         # Convertir posiciones del mundo a nodos del grid
         start_node = self.grid.get_node_from_world_pos(start_pos[0], start_pos[1])
         end_node = self.grid.get_node_from_world_pos(end_pos[0], end_pos[1])
         
-        if not start_node or not end_node or not end_node.walkable:
+        if not start_node or not end_node:
+            print(f"Nodos inválidos: start={start_node}, end={end_node}")
+            return []
+            
+        if not end_node.walkable:
+            print(f"Nodo destino no es caminable: {end_node}")
             return []
         
         # Verificar cache
@@ -134,16 +158,21 @@ class AStar:
         start_node.h_cost = self._heuristic(start_node, end_node)
         start_node.f_cost = start_node.h_cost
         
+        nodes_explored = 0
+        
         while open_set:
             # Obtener nodo con menor f_cost
             current = min(open_set, key=lambda n: n.f_cost)
             open_set.remove(current)
             closed_set.add(current)
             
+            nodes_explored += 1
+            
             # Si llegamos al objetivo, reconstruir camino
             if current == end_node:
                 path = self._reconstruct_path(current)
                 self.path_cache[cache_key] = path
+                print(f"Path encontrado! Nodos explorados: {nodes_explored}")
                 return path
             
             # Explorar vecinos
@@ -165,6 +194,7 @@ class AStar:
                         open_set.append(neighbor)
         
         # No se encontró camino
+        print(f"No se encontró path. Nodos explorados: {nodes_explored}")
         return []
     
     def _heuristic(self, node_a: Node, node_b: Node) -> float:
