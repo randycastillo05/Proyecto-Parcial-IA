@@ -258,4 +258,65 @@ class BulletManager:
     def __init__(self, bullet_group, explosion_group):
         self.bullets = bullet_group
         self.explosions = explosion_group
-        self.bullet_pool
+        self.bullet_pool = []  # Para reutilizar objetos
+        
+    def create_bullet(self, x, y, angle, damage=BULLET_DAMAGE, 
+                     speed=BULLET_SPEED, owner=None):
+        """Crea una nueva bala"""
+        bullet = Bullet(x, y, angle, damage, speed, owner)
+        self.bullets.add(bullet)
+        return bullet
+    
+    def create_explosion(self, x, y, radius=50, damage=50):
+        """Crea una explosión"""
+        explosion = Explosion(x, y, radius, damage)
+        self.explosions.add(explosion)
+        return explosion
+    
+    def update(self, dt):
+        """Actualiza todos los proyectiles"""
+        # Las balas y explosiones se actualizan automáticamente por los grupos
+        pass
+    
+    def check_bullet_collisions(self, targets, obstacles=None):
+        """Verifica colisiones de balas con objetivos"""
+        hits = {}
+        
+        for bullet in self.bullets:
+            # Colisión con objetivos
+            for target in targets:
+                if bullet.owner != target and bullet.rect.colliderect(target.rect):
+                    if target not in hits:
+                        hits[target] = []
+                    hits[target].append(bullet)
+                    bullet.kill()
+                    break
+            
+            # Colisión con obstáculos
+            if obstacles and bullet.alive():
+                # Convertir posición de bala a coordenadas de grid
+                grid_x = int(bullet.pos.x // TILE_SIZE)
+                grid_y = int(bullet.pos.y // TILE_SIZE)
+                
+                # Verificar si está en un obstáculo
+                if obstacles.get_node(grid_x, grid_y):
+                    node = obstacles.get_node(grid_x, grid_y)
+                    if not node.walkable:
+                        bullet.kill()
+                        # Crear pequeña chispa
+                        self.create_explosion(bullet.pos.x, bullet.pos.y, 10, 0)
+        
+        return hits
+    
+    def check_explosion_damage(self, targets):
+        """Verifica daño de explosiones"""
+        for explosion in self.explosions:
+            if not explosion.has_damaged:
+                for target in targets:
+                    explosion.check_damage(target)
+                explosion.has_damaged = True
+    
+    def draw_trails(self, screen):
+        """Dibuja los trails de las balas"""
+        for bullet in self.bullets:
+            bullet.draw_trail(screen)
