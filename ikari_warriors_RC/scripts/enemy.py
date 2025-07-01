@@ -1,6 +1,7 @@
 import pygame
 import math
 import time
+import random
 from scripts.utils.constants import *
 from scripts.ai.behavior_tree import BehaviorTree
 from scripts.ai.enemy_behaviors import EnemyBehaviorFactory
@@ -132,11 +133,17 @@ class Enemy(pygame.sprite.Sprite):
         elif self.enemy_type == EnemyType.KAMIKAZE:
             # Kamikazes patrullan agresivamente
             offsets = [(150, 0), (0, 150), (-150, 0), (0, -150)]
+            self.patrol_points = []
+            for dx, dy in offsets:
+                patrol_x = center_x + dx
+                patrol_y = center_y + dy
+                patrol_x = max(50, min(SCREEN_WIDTH - 50, patrol_x))
+                patrol_y = max(50, min(SCREEN_HEIGHT - 50, patrol_y))
+                self.patrol_points.append((patrol_x, patrol_y))
         else:
             # Patrulla normal
             offsets = [(100, 0), (0, 100), (-100, 0), (0, -100)]
-        
-        if self.enemy_type != EnemyType.SNIPER:
+            self.patrol_points = []
             for dx, dy in offsets:
                 patrol_x = center_x + dx
                 patrol_y = center_y + dy
@@ -336,7 +343,7 @@ class Enemy(pygame.sprite.Sprite):
                 world_y = y * TILE_SIZE + TILE_SIZE // 2
                 points.append((world_x, world_y))
                 
-            if points:
+            if len(points) >= 2:  # Solo dibujar si hay al menos 2 puntos
                 pygame.draw.lines(screen, YELLOW, False, points, 2)
         
         # Dibujar rango de visión

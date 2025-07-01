@@ -307,5 +307,8 @@ class Menu:
         """Reproduce el sonido de selección"""
         if self.select_sound:
             self.select_sound.play()
-  
-  
+    
+    def play_confirm_sound(self):
+        """Reproduce el sonido de confirmación"""
+        if self.confirm_sound:
+            self.confirm_sound.play()

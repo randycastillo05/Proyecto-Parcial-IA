@@ -216,7 +216,7 @@ class AStar:
     def clear_cache(self):
         """Limpia el cache de rutas"""
         self.path_cache.clear()
-    
+        
     def draw_path(self, screen: pygame.Surface, path: List[Tuple[int, int]], 
                   color: Tuple[int, int, int] = (255, 255, 0)):
         """Dibuja el camino en pantalla (útil para debug)"""
@@ -230,8 +230,9 @@ class AStar:
             world_y = y * self.grid.tile_size + self.grid.tile_size // 2
             world_points.append((world_x, world_y))
         
-        # Dibujar línea
-        pygame.draw.lines(screen, color, False, world_points, 3)
+        # Dibujar línea solo si hay suficientes puntos
+        if len(world_points) >= 2:
+            pygame.draw.lines(screen, color, False, world_points, 3)
         
         # Dibujar puntos
         for point in world_points:

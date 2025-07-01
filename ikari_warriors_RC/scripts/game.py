@@ -2,7 +2,7 @@ import pygame
 import random
 import math
 from scripts.player import Player
-from scripts.enemy_updated import Enemy
+from scripts.enemy import  Enemy  # Cambiar a enemy en lugar de enemy_updated
 from scripts.bullet import Bullet, Explosion, PowerUp, BulletManager
 from scripts.utils.constants import *
 from scripts.utils.resources import ResourceManager
@@ -47,7 +47,6 @@ class Game:
         # Variables de juego
         self.score = 0
         self.wave = 1
-        self.enemies_spawned = 0
         self.max_enemies_per_wave = 5
         self.spawn_timer = 0
         self.spawn_cooldown = 3.0
@@ -140,7 +139,6 @@ class Game:
         
         self.enemies.add(enemy)
         self.all_sprites.add(enemy)
-        self.enemies_spawned += 1
         
         print(f"Spawned {enemy_type} en ({x}, {y})")
         
@@ -229,10 +227,13 @@ class Game:
                         self.show_debug_info = not self.show_debug_info
                     elif event.key == pygame.K_SPACE:
                         # Spawn manual de enemigo para pruebas
+                        enemy_types = [EnemyType.SOLDIER, EnemyType.ELITE, 
+                                     EnemyType.SNIPER, EnemyType.KAMIKAZE, 
+                                     EnemyType.OFFICER]
                         self.spawn_enemy(
                             random.randint(100, SCREEN_WIDTH - 100),
                             random.randint(100, SCREEN_HEIGHT - 100),
-                            random.choice(list(EnemyType.__dict__.values()))
+                            random.choice(enemy_types)
                         )
             
             # Actualizar jugador con input
