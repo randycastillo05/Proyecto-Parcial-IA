@@ -1,5 +1,6 @@
+
 from scripts.ai.behavior_tree import *
-from scripts.utils.constants import EnemyType
+from scripts.utils.constants import SCREEN_HEIGHT, SCREEN_WIDTH, EnemyType
 
 class EnemyBehaviorFactory:
     """Factory para crear árboles de comportamiento según el tipo de enemigo"""
@@ -266,4 +267,122 @@ class BuffNearbyAllies(BehaviorNode):
                 elif self.buff_type == "speed":
                     other_enemy.speed_buff = 1.3
                 elif self.buff_type == "damage":
-                    return distance
+                    other_enemy.damage_buff = 1.25
+                    
+                buffed_count += 1
+                
+        if buffed_count > 0:
+            print(f"Oficial buffed {buffed_count} aliados con {self.buff_type}")
+            return NodeStatus.SUCCESS
+            
+        return NodeStatus.FAILURE
+
+class MoveToLastKnownPosition(BehaviorNode):
+    """Se mueve a la última posición conocida del jugador"""
+    
+    def tick(self, blackboard: Dict[str, Any]) -> NodeStatus:
+        enemy = blackboard.get("enemy")
+        last_known_pos = blackboard.get("last_player_position")
+        pathfinder = blackboard.get("pathfinder")
+        
+        if not enemy or not last_known_pos or not pathfinder:
+            return NodeStatus.FAILURE
+            
+        # Verificar si llegamos
+        distance = math.hypot(enemy.pos.x - last_known_pos[0], 
+                            enemy.pos.y - last_known_pos[1])
+        
+        if distance < 30:
+            # Llegamos, olvidar posición
+            blackboard["last_player_position"] = None
+            return NodeStatus.SUCCESS
+            
+        # Moverse hacia la posición
+        if not enemy.path or enemy.path_update_timer >= enemy.path_update_cooldown:
+            enemy.path = pathfinder.find_path(
+                (enemy.pos.x, enemy.pos.y),
+                last_known_pos
+            )
+            enemy.path_index = 0
+            enemy.path_update_timer = 0
+            
+        enemy.follow_path(blackboard.get("dt", 0.016))
+        return NodeStatus.RUNNING
+
+class LookAround(BehaviorNode):
+    """Gira mirando en diferentes direcciones"""
+    
+    def __init__(self, duration: float = 2.0):
+        super().__init__("LookAround")
+        self.duration = duration
+        self.start_time = None
+        
+    def tick(self, blackboard: Dict[str, Any]) -> NodeStatus:
+        enemy = blackboard.get("enemy")
+        current_time = blackboard.get("current_time", 0)
+        
+        if not enemy:
+            return NodeStatus.FAILURE
+            
+        if self.start_time is None:
+            self.start_time = current_time
+            
+        elapsed = current_time - self.start_time
+        
+        if elapsed >= self.duration:
+            self.start_time = None
+            return NodeStatus.SUCCESS
+            
+        # Girar
+        enemy.angle += 2.0 * blackboard.get("dt", 0.016)
+        
+        return NodeStatus.RUNNING
+
+class FlashRed(BehaviorNode):
+    """Hace que el enemigo parpadee en rojo (indicador visual)"""
+    
+    def tick(self, blackboard: Dict[str, Any]) -> NodeStatus:
+        enemy = blackboard.get("enemy")
+        
+        if not enemy:
+            return NodeStatus.FAILURE
+            
+        enemy.flash_color = (255, 0, 0)
+        enemy.flash_timer = 0.1
+        
+        return NodeStatus.SUCCESS
+
+class FindHighGround(BehaviorNode):
+    """Busca una posición elevada o con buena visibilidad"""
+    
+    def tick(self, blackboard: Dict[str, Any]) -> NodeStatus:
+        enemy = blackboard.get("enemy")
+        grid = blackboard.get("grid")
+        
+        if not enemy or not grid:
+            return NodeStatus.FAILURE
+            
+        # Por ahora, buscar esquinas del mapa (simulando posiciones elevadas)
+        sniper_positions = [
+            (100, 100),
+            (SCREEN_WIDTH - 100, 100),
+            (100, SCREEN_HEIGHT - 100),
+            (SCREEN_WIDTH - 100, SCREEN_HEIGHT - 100)
+        ]
+        
+        # Encontrar la posición más cercana
+        best_pos = None
+        best_dist = float('inf')
+        
+        for pos in sniper_positions:
+            dist = math.hypot(enemy.pos.x - pos[0], enemy.pos.y - pos[1])
+            if dist < best_dist:
+                best_dist = dist
+                best_pos = pos
+                
+        if best_pos:
+            blackboard["sniper_position"] = best_pos
+            # TODO: Moverse hacia esa posición
+            return NodeStatus.SUCCESS
+            
+        return NodeStatus.FAILURE
