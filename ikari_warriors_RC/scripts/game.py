@@ -73,9 +73,6 @@ class Game:
         # Música y sonidos
         self.init_audio()
         
-        # Generar sprites si no existen
-        self.generate_sprites_if_needed()
-        
     def create_test_map(self):
         """Crea un mapa más interesante con obstáculos"""
         # Bordes del mapa
@@ -222,13 +219,6 @@ class Game:
         
         # Reproducir música de batalla
         self.audio_manager.play_music("battle_theme")
-    
-    def generate_sprites_if_needed(self):
-        """Genera sprites placeholder si no existen"""
-        sprite_dir = "assets/images/generated"
-        if not os.path.exists(sprite_dir):
-            print("Generando sprites placeholder...")
-            SpriteGenerator.save_all_sprites()
     
     def add_screen_shake(self, intensity=10, duration=0.5):
         """Añade temblor de pantalla"""

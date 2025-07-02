@@ -1,4 +1,9 @@
-"Ikari Warriors RC"
+#!/usr/bin/env python3
+"""
+Ikari Warriors Clone
+Autor: [Tu nombre y matrícula aquí]
+Un juego de acción top-down inspirado en Ikari Warriors
+"""
 
 import pygame
 import sys
@@ -23,6 +28,9 @@ class IkariWarriorsGame:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption(TITLE)
         
+        # Generar sprites si no existen (después de inicializar pygame)
+        self.generate_sprites_if_needed()
+        
         # Reloj para controlar FPS
         self.clock = pygame.time.Clock()
         
@@ -39,6 +47,14 @@ class IkariWarriorsGame:
         
         # Música de fondo
         self.init_music()
+    
+    def generate_sprites_if_needed(self):
+        """Genera sprites placeholder si no existen"""
+        from scripts.utils.sprite_generator import SpriteGenerator
+        sprite_dir = "assets/images/generated"
+        if not os.path.exists(sprite_dir):
+            print("Generando sprites placeholder...")
+            SpriteGenerator.save_all_sprites()
         
     def init_music(self):
         """Inicializa la música del juego"""
