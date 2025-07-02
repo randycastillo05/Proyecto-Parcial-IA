@@ -1,12 +1,16 @@
 import pygame
 import random
 import math
+import os
 from scripts.player import Player
-from scripts.enemy import  Enemy  # Cambiar a enemy en lugar de enemy_updated
+from scripts.enemy import Enemy  # Cambiar a enemy en lugar de enemy_updated
 from scripts.bullet import Bullet, Explosion, PowerUp, BulletManager
 from scripts.utils.constants import *
 from scripts.utils.resources import ResourceManager
 from scripts.ai.pathfinding import Grid, AStar
+from scripts.utils.audio_manager import get_audio_manager
+from scripts.utils.particle_system import ParticleSystem
+from scripts.utils.sprite_generator import SpriteGenerator
 
 class Game:
     """Clase principal que maneja el estado del juego"""
@@ -15,6 +19,10 @@ class Game:
         self.screen = screen
         self.state = GameState.PLAYING  # Por ahora empezamos directo
         self.resource_manager = ResourceManager()
+        
+        # Sistemas del juego
+        self.audio_manager = get_audio_manager()
+        self.particle_system = ParticleSystem()
         
         # Grupos de sprites
         self.all_sprites = pygame.sprite.Group()
@@ -51,6 +59,10 @@ class Game:
         self.spawn_timer = 0
         self.spawn_cooldown = 3.0
         
+        # Efectos de pantalla
+        self.screen_shake = 0
+        self.screen_shake_intensity = 0
+        
         # Variables para debug
         self.show_pathfinding = False
         self.show_debug_info = True
@@ -60,6 +72,9 @@ class Game:
         
         # Música y sonidos
         self.init_audio()
+        
+        # Generar sprites si no existen
+        self.generate_sprites_if_needed()
         
     def create_test_map(self):
         """Crea un mapa más interesante con obstáculos"""
@@ -205,10 +220,20 @@ class Game:
         """Inicializa el sistema de audio"""
         pygame.mixer.init()
         
-        # TODO: Cargar sonidos y música
-        # self.resource_manager.load_sound("shoot", "shoot.wav")
-        # self.resource_manager.load_sound("explosion", "explosion.wav")
-        # self.resource_manager.load_music("bgm", "game_music.mp3")
+        # Reproducir música de batalla
+        self.audio_manager.play_music("battle_theme")
+    
+    def generate_sprites_if_needed(self):
+        """Genera sprites placeholder si no existen"""
+        sprite_dir = "assets/images/generated"
+        if not os.path.exists(sprite_dir):
+            print("Generando sprites placeholder...")
+            SpriteGenerator.save_all_sprites()
+    
+    def add_screen_shake(self, intensity=10, duration=0.5):
+        """Añade temblor de pantalla"""
+        self.screen_shake = duration
+        self.screen_shake_intensity = intensity
     
     def update(self, dt, events):
         """Actualiza la lógica del juego"""
@@ -244,6 +269,13 @@ class Game:
             self.bullets.update(dt)
             self.explosions.update(dt)
             self.powerups.update(dt)
+            
+            # Actualizar sistemas
+            self.particle_system.update(dt)
+            
+            # Actualizar screen shake
+            if self.screen_shake > 0:
+                self.screen_shake -= dt
             
             # Verificar colisiones
             self.check_collisions()
@@ -310,15 +342,31 @@ class Game:
         bullet = self.bullet_manager.create_bullet(x, y, angle, damage, owner=owner)
         self.all_sprites.add(bullet)
         
-        # TODO: Reproducir sonido de disparo
+        # Efectos visuales
+        muzzle_x = x + math.cos(angle) * 20
+        muzzle_y = y + math.sin(angle) * 20
+        self.particle_system.create_muzzle_flash(muzzle_x, muzzle_y, angle)
+        
+        # Sonido
+        if owner == self.player:
+            self.audio_manager.play_sound("player_shoot", 0.5)
+        else:
+            self.audio_manager.play_sound("enemy_shoot", 0.3)
         
     def create_explosion(self, x, y, radius=50, damage=50):
         """Crea una explosión"""
         explosion = self.bullet_manager.create_explosion(x, y, radius, damage)
         self.all_sprites.add(explosion)
         
-        # TODO: Reproducir sonido de explosión
-        # TODO: Hacer temblar la pantalla
+        # Efectos
+        self.particle_system.create_explosion(x, y, radius / 50)
+        self.add_screen_shake(radius / 5, 0.3)
+        
+        # Sonido
+        if radius > 75:
+            self.audio_manager.play_explosion("big")
+        else:
+            self.audio_manager.play_explosion("small")
         
     def create_powerup(self, x, y, powerup_type):
         """Crea un power-up"""
@@ -386,42 +434,71 @@ class Game:
         # Limpiar pantalla
         self.screen.fill(DARK_GREEN)
         
+        # Aplicar screen shake
+        shake_offset = [0, 0]
+        if self.screen_shake > 0:
+            shake_offset[0] = random.randint(-self.screen_shake_intensity, 
+                                            self.screen_shake_intensity)
+            shake_offset[1] = random.randint(-self.screen_shake_intensity, 
+                                            self.screen_shake_intensity)
+        
+        # Crear superficie temporal si hay shake
+        if self.screen_shake > 0:
+            temp_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            temp_surface.fill(DARK_GREEN)
+            draw_surface = temp_surface
+        else:
+            draw_surface = self.screen
+        
         if self.state == GameState.PLAYING:
             # Dibujar grid (opcional)
             if self.show_pathfinding:
-                self.draw_grid()
+                self.draw_grid(draw_surface)
             
             # Dibujar obstáculos
-            self.draw_obstacles()
+            self.draw_obstacles(draw_surface)
             
             # Dibujar trails de balas
-            self.bullet_manager.draw_trails(self.screen)
+            self.bullet_manager.draw_trails(draw_surface)
             
             # Dibujar sprites (orden importante)
             for sprite in sorted(self.all_sprites, key=lambda s: s.rect.bottom):
-                self.screen.blit(sprite.image, sprite.rect)
+                draw_surface.blit(sprite.image, sprite.rect)
+            
+            # Dibujar partículas
+            self.particle_system.draw(draw_surface)
             
             # Dibujar debug de enemigos
             if self.show_debug_info:
                 for enemy in self.enemies:
-                    enemy.draw_debug(self.screen)
+                    enemy.draw_debug(draw_surface)
             
-            # Dibujar UI
+            # Si hay shake, dibujar la superficie temporal con offset
+            if self.screen_shake > 0:
+                self.screen.blit(temp_surface, shake_offset)
+            
+            # Dibujar UI (siempre sin shake)
             self.draw_ui()
             
         elif self.state == GameState.GAME_OVER:
             self.draw_game_over()
     
-    def draw_grid(self):
+    def draw_grid(self, surface=None):
         """Dibuja el grid del pathfinding"""
+        if surface is None:
+            surface = self.screen
+            
         for x in range(0, SCREEN_WIDTH, TILE_SIZE):
-            pygame.draw.line(self.screen, (50, 50, 50), (x, 0), (x, SCREEN_HEIGHT), 1)
+            pygame.draw.line(surface, (50, 50, 50), (x, 0), (x, SCREEN_HEIGHT), 1)
         
         for y in range(0, SCREEN_HEIGHT, TILE_SIZE):
-            pygame.draw.line(self.screen, (50, 50, 50), (0, y), (SCREEN_WIDTH, y), 1)
+            pygame.draw.line(surface, (50, 50, 50), (0, y), (SCREEN_WIDTH, y), 1)
     
-    def draw_obstacles(self):
+    def draw_obstacles(self, surface=None):
         """Dibuja los obstáculos del mapa"""
+        if surface is None:
+            surface = self.screen
+            
         for y in range(self.grid.height):
             for x in range(self.grid.width):
                 node = self.grid.get_node(x, y)
@@ -432,8 +509,8 @@ class Game:
                         TILE_SIZE, 
                         TILE_SIZE
                     )
-                    pygame.draw.rect(self.screen, (80, 80, 80), rect)
-                    pygame.draw.rect(self.screen, BLACK, rect, 2)
+                    pygame.draw.rect(surface, (80, 80, 80), rect)
+                    pygame.draw.rect(surface, BLACK, rect, 2)
     
     def draw_ui(self):
         """Dibuja la interfaz de usuario"""
