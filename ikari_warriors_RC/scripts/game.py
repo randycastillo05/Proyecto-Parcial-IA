@@ -10,19 +10,38 @@ from scripts.utils.resources import ResourceManager
 from scripts.ai.pathfinding import Grid, AStar
 from scripts.utils.audio_manager import get_audio_manager
 from scripts.utils.particle_system import ParticleSystem
-from scripts.utils.sprite_generator import SpriteGenerator
+from scripts.utils.enhanced_visual import VisualEffects, WeatherEffects
+from scripts.utils.game_feel import CameraSystem, CombatEffects, GameFeedback, UIEffects
+from scripts.utils.progression_system import ProgressionSystem, ComboSystem, WaveManager
+
 
 class Game:
     """Clase principal que maneja el estado del juego"""
     
     def __init__(self, screen):
         self.screen = screen
-        self.state = GameState.PLAYING  # Por ahora empezamos directo
+        self.state = GameState.PLAYING
         self.resource_manager = ResourceManager()
         
         # Sistemas del juego
         self.audio_manager = get_audio_manager()
         self.particle_system = ParticleSystem()
+        self.camera = CameraSystem(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.game_feedback = GameFeedback()
+        self.weather_effects = WeatherEffects(SCREEN_WIDTH, SCREEN_HEIGHT)
+        
+        # Sistemas de progresión
+        self.progression = ProgressionSystem()
+        self.combo_system = ComboSystem()
+        self.wave_manager = WaveManager()
+        
+        # Superficies de renderizado
+        self.game_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.ui_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+        
+        # Fondo mejorado
+        self.background = VisualEffects.create_gradient_background(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.create_tiled_floor()
         
         # Grupos de sprites
         self.all_sprites = pygame.sprite.Group()
@@ -31,6 +50,7 @@ class Game:
         self.explosions = pygame.sprite.Group()
         self.powerups = pygame.sprite.Group()
         self.obstacles = pygame.sprite.Group()
+        self.effects = pygame.sprite.Group()
         
         # Crear grid para pathfinding
         grid_width = SCREEN_WIDTH // TILE_SIZE
@@ -41,37 +61,62 @@ class Game:
         # Crear gestor de balas
         self.bullet_manager = BulletManager(self.bullets, self.explosions)
         
-        # Crear algunos obstáculos de prueba
-        self.create_test_map()
+        # Crear mapa mejorado
+        self.create_enhanced_map()
         
         # Crear jugador
         self.player = Player(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        self.player.game = self  # Referencia al juego
+        self.player.game = self
         self.all_sprites.add(self.player)
         
-        # Crear enemigos de prueba
-        self.create_test_enemies()
+        # Aplicar stats de progresión al jugador
+        self.apply_progression_stats()
         
         # Variables de juego
         self.score = 0
-        self.wave = 1
-        self.max_enemies_per_wave = 5
+        self.wave = 0
+        self.enemies_remaining = 0
         self.spawn_timer = 0
-        self.spawn_cooldown = 3.0
+        self.spawn_queue = []
         
-        # Efectos de pantalla
-        self.screen_shake = 0
-        self.screen_shake_intensity = 0
+        # Efectos visuales
+        self.screen_effects = []
+        self.damage_vignette = VisualEffects.create_damage_vignette(SCREEN_WIDTH, SCREEN_HEIGHT)
+        self.damage_vignette_alpha = 0
         
         # Variables para debug
         self.show_pathfinding = False
-        self.show_debug_info = True
+        self.show_debug_info = False
+        self.show_fps = True
         
-        # Inicializar gamepad si está disponible
+        # Inicializar gamepad
         self.init_gamepad()
         
         # Música y sonidos
         self.init_audio()
+        
+        # Iniciar primera oleada
+        self.start_next_wave()
+
+        self.screen_shake=0
+        self.add_screen_shake
+
+        self.spawn_cooldown=2.0
+        self.max_enemies_per_wave=10
+
+        self.paused= False
+
+    def add_screen_shake(self, intensity, duration):
+        self.screen_shake = max(self.screen_shake, duration)
+        self.screen_shake_intensity = max(self.screen_shake_intensity,intensity  )
+
+
+    def update_screen_shake(self, dt):
+        if self.screen_shake > 0:
+            self.screen_shake -= dt
+            if self.screen_shake <= 0:
+                self.screen_shake = 0
+                self.screen_shake_intensity = 0
         
     def create_test_map(self):
         """Crea un mapa más interesante con obstáculos"""
@@ -220,10 +265,110 @@ class Game:
         # Reproducir música de batalla
         self.audio_manager.play_music("battle_theme")
     
-    def add_screen_shake(self, intensity=10, duration=0.5):
-        """Añade temblor de pantalla"""
-        self.screen_shake = duration
-        self.screen_shake_intensity = intensity
+    def create_tiled_floor(self):
+        """Crea un suelo con tiles variados"""
+        self.floor_surface = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        
+        tile_types = ['grass', 'dirt', 'grass', 'grass']  # Más grass que dirt
+        
+        for y in range(0, SCREEN_HEIGHT, TILE_SIZE):
+            for x in range(0, SCREEN_WIDTH, TILE_SIZE):
+                tile_type = random.choice(tile_types)
+                tile = VisualEffects.create_tile_texture(TILE_SIZE, tile_type)
+                self.floor_surface.blit(tile, (x, y))
+    
+    def create_enhanced_map(self):
+        """Crea un mapa más interesante con diferentes tipos de obstáculos"""
+        # Limpiar mapa
+        for y in range(self.grid.height):
+            for x in range(self.grid.width):
+                self.grid.set_walkable(x, y, True)
+        
+        # Bordes del mapa con muros
+        for x in range(self.grid.width):
+            self.grid.set_walkable(x, 0, False)
+            self.grid.set_walkable(x, self.grid.height - 1, False)
+        
+        for y in range(self.grid.height):
+            self.grid.set_walkable(0, y, False)
+            self.grid.set_walkable(self.grid.width - 1, y, False)
+        
+        # Estructuras variadas
+        self.create_building(5, 5, 5, 5, 'wall')
+        self.create_building(25, 5, 4, 4, 'crate')
+        self.create_building(15, 12, 3, 3, 'barrel')
+        self.create_building(10, 18, 3, 5, 'wall')
+        self.create_building(20, 18, 3, 5, 'wall')
+        
+        # Obstáculos individuales
+        obstacles = [
+            (7, 15, 'tree'), (8, 16, 'tree'),
+            (24, 15, 'barrel'), (25, 16, 'barrel'),
+            (15, 8, 'crate'), (16, 8, 'crate')
+        ]
+        
+        for x, y, obstacle_type in obstacles:
+            if 0 <= x < self.grid.width and 0 <= y < self.grid.height:
+                self.grid.set_walkable(x, y, False)
+    
+    def create_building(self, start_x, start_y, width, height, wall_type):
+        """Crea una estructura rectangular"""
+        for y in range(start_y, min(start_y + height, self.grid.height)):
+            for x in range(start_x, min(start_x + width, self.grid.width)):
+                # Solo bordes para edificios, dejando el interior caminable
+                if x == start_x or x == start_x + width - 1 or \
+                   y == start_y or y == start_y + height - 1:
+                    self.grid.set_walkable(x, y, False)
+    
+    def apply_progression_stats(self):
+        """Aplica las estadísticas de progresión al jugador"""
+        if hasattr(self.player, 'max_health'):
+            self.player.max_health = self.progression.stats['max_health']
+            self.player.health = self.player.max_health
+            self.player.damage_boost = self.progression.stats['damage_multiplier']
+            self.player.fire_rate_boost = self.progression.stats['fire_rate']
+            self.player.speed = PLAYER_SPEED * self.progression.stats['movement_speed']
+    
+    def start_next_wave(self):
+        """Inicia la siguiente oleada"""
+        self.wave += 1
+        wave_config = self.wave_manager.get_wave_config(self.wave)
+        
+        print(f"\n=== OLEADA {self.wave} ===")
+        print(f"Enemigos: {wave_config['enemy_count']}")
+        print(f"Modificadores: {wave_config['modifiers']}")
+        
+        # Preparar cola de spawn
+        self.spawn_queue = []
+        for enemy_type, probability in wave_config['enemy_types']:
+            count = int(wave_config['enemy_count'] * probability)
+            self.spawn_queue.extend([enemy_type] * count)
+        
+        random.shuffle(self.spawn_queue)
+        self.enemies_remaining = len(self.spawn_queue)
+        self.spawn_timer = 0
+        
+        # Aplicar modificadores de oleada
+        self.apply_wave_modifiers(wave_config['modifiers'])
+        
+        # Efectos visuales de nueva oleada
+        self.show_wave_announcement()
+    
+    def apply_wave_modifiers(self, modifiers):
+        """Aplica modificadores especiales a la oleada"""
+        for modifier in modifiers:
+            if modifier == 'fog_of_war':
+                # Activar niebla
+                pass
+            elif modifier == 'fast_enemies':
+                # Los enemigos serán más rápidos
+                pass
+            # etc...
+    
+    def show_wave_announcement(self):
+        """Muestra anuncio de nueva oleada"""
+        # TODO: Implementar anuncio visual
+        self.audio_manager.play_sound("wave_start", 0.7)
     
     def update(self, dt, events):
         """Actualiza la lógica del juego"""
@@ -232,7 +377,7 @@ class Game:
             keys = pygame.key.get_pressed()
             mouse_pos = pygame.mouse.get_pos()
             mouse_buttons = pygame.mouse.get_pressed()
-            
+            self.update_screen_shake(dt)
             # Manejar eventos específicos
             for event in events:
                 if event.type == pygame.KEYDOWN:

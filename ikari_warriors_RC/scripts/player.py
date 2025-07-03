@@ -1,17 +1,16 @@
 import pygame
 import math
+import os
 from scripts.utils.constants import *
 
 class Player(pygame.sprite.Sprite):
-    """Clase que representa al jugador"""
+    """Clase que representa al jugador con sprites mejorados"""
     
     def __init__(self, x, y):
         super().__init__()
         
-        # Crear sprite temporal (un cuadrado verde por ahora)
-        self.image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
-        self.original_image = self.image.copy()
-        self.image.fill(GREEN)
+        # Crear sprite mejorado
+        self.load_enhanced_sprite()
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         
@@ -52,6 +51,34 @@ class Player(pygame.sprite.Sprite):
         
         # Estado del gamepad
         self.gamepad_shoot_held = False
+        
+    def load_enhanced_sprite(self):
+        """Carga el sprite mejorado o crea uno de respaldo"""
+        sprite_path = os.path.join("assets", "images", "enhanced", "player.png")
+        
+        try:
+            # Intentar cargar sprite mejorado
+            if os.path.exists(sprite_path):
+                self.original_image = pygame.image.load(sprite_path).convert_alpha()
+                print("✓ Sprite mejorado del jugador cargado")
+            else:
+                # Generar sprite si no existe
+                print("⚠ Generando sprite del jugador...")
+                from enhance_sprites import EnhancedSprites
+                self.original_image = EnhancedSprites.create_detailed_player(48)
+                
+                # Guardar para uso futuro
+                os.makedirs(os.path.dirname(sprite_path), exist_ok=True)
+                pygame.image.save(self.original_image, sprite_path)
+                print("✓ Sprite del jugador generado y guardado")
+                
+        except Exception as e:
+            print(f"❌ Error cargando sprite: {e}")
+            # Fallback al sprite original
+            self.original_image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
+            self.original_image.fill(GREEN)
+            
+        self.image = self.original_image.copy()
         
     def handle_input(self, keys, mouse_pos, mouse_buttons, gamepad):
         """Maneja el input del jugador"""
@@ -171,7 +198,7 @@ class Player(pygame.sprite.Sprite):
         # Actualizar rect
         self.rect.center = self.pos
         
-        # Actualizar sprite
+        # Actualizar sprite con rotación
         self.update_sprite()
         
     def shoot(self):
@@ -184,9 +211,9 @@ class Player(pygame.sprite.Sprite):
             base_cooldown = SHOOT_COOLDOWN
             self.shoot_cooldown = base_cooldown / self.fire_rate_boost
             
-            # Efecto visual
-            self.flash_color = WHITE
-            self.flash_timer = 0.05
+            # Efecto visual mejorado
+            self.flash_color = (255, 255, 255)
+            self.flash_timer = 0.08
             
     def take_damage(self, damage):
         """Recibe daño"""
@@ -196,9 +223,9 @@ class Player(pygame.sprite.Sprite):
         self.health -= damage
         self.health = max(0, self.health)
         
-        # Efecto visual de daño
-        self.flash_color = RED
-        self.flash_timer = 0.1
+        # Efecto visual de daño más intenso
+        self.flash_color = (255, 50, 50)
+        self.flash_timer = 0.15
         
         # Breve invulnerabilidad después del daño
         self.invulnerable = True
@@ -217,9 +244,9 @@ class Player(pygame.sprite.Sprite):
         """Cura al jugador"""
         self.health = min(self.health + amount, self.max_health)
         
-        # Efecto visual de curación
-        self.flash_color = GREEN
-        self.flash_timer = 0.2
+        # Efecto visual de curación mejorado
+        self.flash_color = (100, 255, 100)
+        self.flash_timer = 0.3
         
     def apply_speed_boost(self, multiplier, duration):
         """Aplica un boost de velocidad temporal"""
@@ -237,34 +264,85 @@ class Player(pygame.sprite.Sprite):
         self.fire_rate_boost_timer = duration
     
     def update_sprite(self):
-        """Actualiza el sprite del jugador"""
-        # Por ahora solo cambiar color
+        """Actualiza el sprite del jugador con rotación y efectos"""
+        # Comenzar con la imagen original
+        current_image = self.original_image.copy()
+        
+        # Aplicar efectos de color
         if self.flash_color:
-            self.image.fill(self.flash_color)
+            # Crear overlay de color
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((*self.flash_color, 180))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+            
         elif self.invulnerable:
             # Parpadeo cuando es invulnerable
-            if int(self.invulnerable_timer * 10) % 2 == 0:
-                self.image.fill((100, 255, 100))  # Verde claro
-            else:
-                self.image.fill(GREEN)
-        else:
-            # Color normal con indicadores de power-ups
-            base_color = list(GREEN)
-            
-            # Modificar color según power-ups activos
-            if self.speed_boost > 1.0:
-                base_color[2] = min(255, base_color[2] + 100)  # Más azul
-            if self.damage_boost > 1.0:
-                base_color[0] = min(255, base_color[0] + 100)  # Más rojo
-            if self.fire_rate_boost > 1.0:
-                base_color[1] = min(255, base_color[1] + 50)   # Más verde
-                
-            self.image.fill(tuple(base_color))
+            if int(self.invulnerable_timer * 15) % 2 == 0:
+                overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+                overlay.fill((255, 255, 255, 100))
+                current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
         
-        # TODO: Cuando tengamos sprites reales, rotar según el ángulo
-        # self.image = pygame.transform.rotate(self.original_image, -math.degrees(self.angle))
-        # self.rect = self.image.get_rect(center=self.rect.center)
+        # Indicadores visuales de power-ups
+        if self.speed_boost > 1.0:
+            # Aura azul para velocidad
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((0, 100, 255, 50))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+            
+        if self.damage_boost > 1.0:
+            # Aura roja para daño
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 100, 0, 50))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+            
+        if self.fire_rate_boost > 1.0:
+            # Aura amarilla para velocidad de disparo
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 255, 0, 50))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+        
+        # Rotar sprite según ángulo de apuntado
+        if self.angle != 0:
+            # Convertir ángulo a grados y rotar
+            angle_degrees = -math.degrees(self.angle)
+            rotated_image = pygame.transform.rotate(current_image, angle_degrees)
+            
+            # Mantener el centro
+            old_center = self.rect.center
+            self.image = rotated_image
+            self.rect = self.image.get_rect()
+            self.rect.center = old_center
+        else:
+            self.image = current_image
     
     def get_damage(self):
         """Retorna el daño actual con boosts aplicados"""
         return BULLET_DAMAGE * self.damage_boost
+    
+    def draw_debug_info(self, screen):
+        """Dibuja información de debug sobre el jugador"""
+        if hasattr(self, 'game') and self.game and self.game.show_debug_info:
+            # Círculo de detección
+            pygame.draw.circle(screen, (0, 255, 0, 50), 
+                             (int(self.pos.x), int(self.pos.y)), 
+                             PLAYER_SIZE, 1)
+            
+            # Línea de apuntado
+            end_x = self.pos.x + math.cos(self.angle) * 100
+            end_y = self.pos.y + math.sin(self.angle) * 100
+            pygame.draw.line(screen, (255, 255, 0), 
+                           (self.pos.x, self.pos.y), (end_x, end_y), 2)
+            
+            # Información de estado
+            font = pygame.font.Font(None, 24)
+            info_texts = [
+                f"Vida: {self.health}/{self.max_health}",
+                f"Vel: {self.speed_boost:.1f}x",
+                f"Daño: {self.damage_boost:.1f}x",
+                f"Disparo: {self.fire_rate_boost:.1f}x",
+                f"Ángulo: {math.degrees(self.angle):.1f}°"
+            ]
+            
+            for i, text in enumerate(info_texts):
+                text_surface = font.render(text, True, (255, 255, 255))
+                screen.blit(text_surface, (10, 150 + i * 25))
