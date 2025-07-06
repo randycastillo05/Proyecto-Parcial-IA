@@ -23,15 +23,26 @@ class CameraSystem:
         self.smoothing = 0.1
         self.zoom_smoothing = 0.05
         
-    def follow(self, target_pos, lead_amount=0.3):
+    def follow(self, target, lead_amount=0.3):
         """Sigue al objetivo con suavizado y anticipación"""
-        # Calcular posición objetivo con anticipación
-        if hasattr(target_pos, 'velocity'):
-            self.target_x = target_pos.x + target_pos.velocity.x * lead_amount
-            self.target_y = target_pos.y + target_pos.velocity.y * lead_amount
-        else:
-            self.target_x = target_pos[0]
-            self.target_y = target_pos[1]
+        # Manejar diferentes tipos de target
+        if hasattr(target, 'pos'):  # Si es un sprite (Player/Enemy)
+            target_x = target.pos.x
+            target_y = target.pos.y
+            
+            # Calcular posición objetivo con anticipación
+            if hasattr(target, 'velocity'):
+                self.target_x = target_x + target.velocity.x * lead_amount
+                self.target_y = target_y + target.velocity.y * lead_amount
+            else:
+                self.target_x = target_x
+                self.target_y = target_y
+        elif isinstance(target, (tuple, list)):  # Si es una tupla/lista (x, y)
+            self.target_x = target[0]
+            self.target_y = target[1]
+        else:  # Si es un objeto con x, y directos
+            self.target_x = target.x if hasattr(target, 'x') else 0
+            self.target_y = target.y if hasattr(target, 'y') else 0
         
         # Centrar en pantalla
         self.target_x -= self.width // 2

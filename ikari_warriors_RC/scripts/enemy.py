@@ -2,12 +2,13 @@ import pygame
 import math
 import time
 import random
+import os
 from scripts.utils.constants import *
 from scripts.ai.behavior_tree import BehaviorTree
 from scripts.ai.enemy_behaviors import EnemyBehaviorFactory
 
 class Enemy(pygame.sprite.Sprite):
-    """Clase base para todos los enemigos con árbol de comportamiento"""
+    """Clase base para todos los enemigos con árbol de comportamiento y sprites mejorados"""
     
     def __init__(self, x, y, enemy_type=EnemyType.SOLDIER):
         super().__init__()
@@ -16,10 +17,8 @@ class Enemy(pygame.sprite.Sprite):
         self.enemy_type = enemy_type
         self.setup_enemy_stats()
         
-        # Sprite temporal (color según tipo)
-        self.image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
-        self.original_image = self.image.copy()
-        self.image.fill(self.color)
+        # Cargar sprite mejorado
+        self.load_enhanced_sprite()
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
         
@@ -27,6 +26,7 @@ class Enemy(pygame.sprite.Sprite):
         self.pos = pygame.math.Vector2(x, y)
         self.velocity = pygame.math.Vector2(0, 0)
         self.angle = 0
+        self.facing_direction = 0  # Para voltear el sprite
         
         # Sistema de vida
         self.health = self.max_health
@@ -55,6 +55,7 @@ class Enemy(pygame.sprite.Sprite):
         # Efectos visuales
         self.flash_color = None
         self.flash_timer = 0
+        self.hurt_timer = 0
         
         # Referencias (se establecen desde Game)
         self.player = None
@@ -70,6 +71,52 @@ class Enemy(pygame.sprite.Sprite):
         # Para debug
         self.current_behavior = "idle"
         
+        # Animación
+        self.animation_timer = 0
+        self.bob_offset = 0
+        
+    def load_enhanced_sprite(self):
+        """Carga el sprite mejorado del enemigo"""
+        sprite_filename = f"enemy_{self.enemy_type}.png"
+        sprite_path = os.path.join("assets", "images", "enhanced", sprite_filename)
+        
+        try:
+            # Intentar cargar sprite mejorado
+            if os.path.exists(sprite_path):
+                self.original_image = pygame.image.load(sprite_path).convert_alpha()
+                print(f"✓ Sprite mejorado de {self.enemy_type} cargado")
+            else:
+                # Generar sprite si no existe
+                print(f"⚠ Generando sprite de {self.enemy_type}...")
+                from ikari_warriors_RC.scripts.utils.enhance_sprites import EnhancedSprites
+                
+                # Generar sprite según tipo
+                if self.enemy_type == EnemyType.SOLDIER:
+                    self.original_image = EnhancedSprites.create_detailed_soldier()
+                elif self.enemy_type == EnemyType.ELITE:
+                    self.original_image = EnhancedSprites.create_detailed_elite()
+                elif self.enemy_type == EnemyType.SNIPER:
+                    self.original_image = EnhancedSprites.create_detailed_sniper()
+                elif self.enemy_type == EnemyType.KAMIKAZE:
+                    self.original_image = EnhancedSprites.create_detailed_kamikaze()
+                elif self.enemy_type == EnemyType.OFFICER:
+                    self.original_image = EnhancedSprites.create_detailed_officer()
+                else:
+                    self.original_image = EnhancedSprites.create_detailed_soldier()
+                
+                # Guardar para uso futuro
+                os.makedirs(os.path.dirname(sprite_path), exist_ok=True)
+                pygame.image.save(self.original_image, sprite_path)
+                print(f"✓ Sprite de {self.enemy_type} generado y guardado")
+                
+        except Exception as e:
+            print(f"❌ Error cargando sprite de {self.enemy_type}: {e}")
+            # Fallback al sprite original
+            self.original_image = pygame.Surface((PLAYER_SIZE, PLAYER_SIZE))
+            self.original_image.fill(self.color)
+            
+        self.image = self.original_image.copy()
+        
     def setup_enemy_stats(self):
         """Configura las estadísticas según el tipo de enemigo"""
         if self.enemy_type == EnemyType.SOLDIER:
@@ -80,6 +127,7 @@ class Enemy(pygame.sprite.Sprite):
             self.shoot_rate = 0.5  # Disparos por segundo
             self.accuracy = 0.7
             self.color = RED
+            self.score_value = 100
             
         elif self.enemy_type == EnemyType.ELITE:
             self.max_health = 75
@@ -89,6 +137,7 @@ class Enemy(pygame.sprite.Sprite):
             self.shoot_rate = 0.8
             self.accuracy = 0.85
             self.color = (139, 0, 0)  # Rojo oscuro
+            self.score_value = 200
             
         elif self.enemy_type == EnemyType.SNIPER:
             self.max_health = 40
@@ -98,6 +147,7 @@ class Enemy(pygame.sprite.Sprite):
             self.shoot_rate = 0.3
             self.accuracy = 0.95
             self.color = (128, 0, 128)  # Púrpura
+            self.score_value = 300
             
         elif self.enemy_type == EnemyType.KAMIKAZE:
             self.max_health = 30
@@ -107,6 +157,7 @@ class Enemy(pygame.sprite.Sprite):
             self.shoot_rate = 0
             self.accuracy = 0
             self.color = (255, 165, 0)  # Naranja
+            self.score_value = 150
             
         elif self.enemy_type == EnemyType.OFFICER:
             self.max_health = 100
@@ -116,6 +167,7 @@ class Enemy(pygame.sprite.Sprite):
             self.shoot_rate = 0.4
             self.accuracy = 0.6
             self.color = (0, 100, 0)  # Verde oscuro
+            self.score_value = 500
     
     def setup_patrol_points(self):
         """Configura los puntos de patrulla del enemigo"""
@@ -155,6 +207,7 @@ class Enemy(pygame.sprite.Sprite):
         """Actualiza el estado del enemigo usando el árbol de comportamiento"""
         # Actualizar timers
         self.path_update_timer += dt
+        self.animation_timer += dt
         
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= dt
@@ -165,9 +218,9 @@ class Enemy(pygame.sprite.Sprite):
         # Actualizar efectos visuales
         if self.flash_timer > 0:
             self.flash_timer -= dt
-            if self.flash_timer <= 0:
-                self.flash_color = None
-                self.image.fill(self.color)
+        
+        if self.hurt_timer > 0:
+            self.hurt_timer -= dt
         
         # Preparar blackboard para el árbol
         blackboard_data = {
@@ -207,18 +260,37 @@ class Enemy(pygame.sprite.Sprite):
         self.pos.x = max(PLAYER_SIZE//2, min(SCREEN_WIDTH - PLAYER_SIZE//2, self.pos.x))
         self.pos.y = max(PLAYER_SIZE//2, min(SCREEN_HEIGHT - PLAYER_SIZE//2, self.pos.y))
         
-        # Actualizar sprite según ángulo
+        # Animación de movimiento (bobbing)
+        if self.velocity.length() > 0:
+            self.bob_offset = math.sin(self.animation_timer * 10) * 2
+        else:
+            self.bob_offset *= 0.9  # Suavizar cuando se detiene
+        
+        # Actualizar sprite según ángulo y estado
         self.update_sprite()
     
     def can_see_player(self):
-        """Verifica si puede ver al jugador"""
+        """Verifica si puede ver al jugador con línea de visión"""
         if not self.player:
             return False
             
         distance = self.pos.distance_to(self.player.pos)
         
         if distance <= self.sight_range:
-            # TODO: Verificar línea de visión con raycasting
+            # Verificar línea de visión con raycasting simple
+            if self.pathfinder and self.pathfinder.grid:
+                # Puntos a verificar en la línea
+                steps = int(distance / TILE_SIZE)
+                if steps > 0:
+                    for i in range(steps):
+                        t = i / steps
+                        check_x = self.pos.x + (self.player.pos.x - self.pos.x) * t
+                        check_y = self.pos.y + (self.player.pos.y - self.pos.y) * t
+                        
+                        node = self.pathfinder.grid.get_node_from_world_pos(check_x, check_y)
+                        if node and not node.walkable:
+                            return False  # Hay un obstáculo bloqueando la vista
+                            
             return True
             
         return False
@@ -253,39 +325,64 @@ class Enemy(pygame.sprite.Sprite):
             # Aplicar buff de precisión
             actual_accuracy = min(1.0, self.accuracy * self.accuracy_buff)
             
-            # TODO: Crear bala con precisión
-            if self.game:
-                # Calcular dispersión según precisión
-                import random
-                spread = (1.0 - actual_accuracy) * 0.5
-                angle_offset = random.uniform(-spread, spread)
-                
-                final_angle = self.angle + angle_offset
-                
-                # Solicitar creación de bala
-                self.behavior_tree.blackboard["bullet_request"] = {
-                    "position": self.pos.copy(),
-                    "angle": final_angle,
-                    "damage": BULLET_DAMAGE * self.damage_buff,
-                    "owner": self
-                }
+            # Calcular dispersión según precisión
+            spread = (1.0 - actual_accuracy) * 0.5
+            angle_offset = random.uniform(-spread, spread)
+            
+            # Para el francotirador, añadir láser de apuntado
+            if self.enemy_type == EnemyType.SNIPER:
+                self.show_sniper_laser = True
+            
+            final_angle = self.angle + angle_offset
+            
+            # Solicitar creación de bala
+            self.behavior_tree.blackboard["bullet_request"] = {
+                "position": self.pos.copy(),
+                "angle": final_angle,
+                "damage": BULLET_DAMAGE * self.damage_buff,
+                "owner": self
+            }
             
             self.shoot_cooldown = 1.0 / self.shoot_rate
             self.last_shot_time = time.time()
     
     def take_damage(self, damage):
-        """Recibe daño"""
+        """Recibe daño con efectos mejorados"""
         self.health -= damage
         
-        # Efecto visual de daño
+        # Efectos visuales de daño
         self.flash_color = WHITE
         self.flash_timer = 0.1
+        self.hurt_timer = 0.3
+        
+        # Efecto de retroceso
+        if self.player:
+            knockback_dir = self.pos - self.player.pos
+            if knockback_dir.length() > 0:
+                knockback_dir = knockback_dir.normalize()
+                self.pos += knockback_dir * 10
+        
+        # Partículas de sangre
+        if self.game:
+            impact_angle = math.atan2(self.player.pos.y - self.pos.y, 
+                                    self.player.pos.x - self.pos.x)
+            self.game.particle_system.create_blood_splatter(
+                self.pos.x, self.pos.y, impact_angle + math.pi
+            )
         
         if self.health <= 0:
             self.on_death()
             
     def on_death(self):
-        """Llamado cuando el enemigo muere"""
+        """Llamado cuando el enemigo muere con efectos mejorados"""
+        # Dar puntos al jugador
+        if self.game:
+            self.game.score += self.score_value
+            
+            # Verificar combo
+            if hasattr(self.game, 'combo_system'):
+                self.game.combo_system.add_kill()
+        
         # Efectos según el tipo
         if self.enemy_type == EnemyType.KAMIKAZE:
             # Explotar al morir
@@ -302,39 +399,103 @@ class Enemy(pygame.sprite.Sprite):
                     "position": self.pos.copy(),
                     "type": random.choice(["health", "ammo", "speed"])
                 }
+        else:
+            # Chance normal de power-up
+            if self.game and random.random() < 0.15:
+                self.behavior_tree.blackboard["powerup_request"] = {
+                    "position": self.pos.copy(),
+                    "type": random.choice(["health", "ammo", "speed"])
+                }
+        
+        # Partículas de muerte
+        if self.game:
+            self.game.particle_system.create_explosion(
+                self.pos.x, self.pos.y, 0.5
+            )
         
         # Eliminar del juego
         self.kill()
-        print(f"{self.enemy_type} eliminado!")
+        print(f"{self.enemy_type} eliminado! +{self.score_value} puntos")
     
     def update_sprite(self):
-        """Actualiza el sprite según el estado"""
-        # Por ahora solo cambiar color si hay flash
-        if self.flash_color:
-            self.image.fill(self.flash_color)
-        else:
-            self.image.fill(self.color)
+        """Actualiza el sprite con rotación y efectos"""
+        # Comenzar con la imagen original
+        current_image = self.original_image.copy()
+        
+        # Aplicar efectos de color
+        if self.flash_timer > 0:
+            # Flash de daño
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 255, 255, 180))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
             
-        # TODO: Rotar sprite según ángulo cuando tengamos sprites reales
+        elif self.hurt_timer > 0:
+            # Tinte rojo cuando está herido
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 0, 0, 100))
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_MULT)
+        
+        # Indicador de buff (aura)
+        if self.speed_buff > 1.0 or self.accuracy_buff > 1.0 or self.damage_buff > 1.0:
+            overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+            overlay.fill((255, 215, 0, 50))  # Aura dorada
+            current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+        
+        # Efecto especial para kamikaze
+        if self.enemy_type == EnemyType.KAMIKAZE and self.player:
+            distance = self.pos.distance_to(self.player.pos)
+            if distance < 100:
+                # Parpadeo rojo cuando está cerca
+                if int(self.animation_timer * 10) % 2 == 0:
+                    overlay = pygame.Surface(current_image.get_size(), pygame.SRCALPHA)
+                    overlay.fill((255, 0, 0, 150))
+                    current_image.blit(overlay, (0, 0), special_flags=pygame.BLEND_ADD)
+        
+        # Rotar sprite según ángulo
+        if self.velocity.length() > 0:
+            # Voltear horizontalmente si mira a la izquierda
+            if abs(self.angle) > math.pi/2:
+                current_image = pygame.transform.flip(current_image, True, False)
+        
+        # Aplicar bobbing vertical
+        self.image = current_image
+        old_center = self.rect.center
+        self.rect = self.image.get_rect()
+        self.rect.center = (old_center[0], old_center[1] + self.bob_offset)
     
     def process_tree_requests(self, blackboard):
         """Procesa solicitudes del árbol de comportamiento"""
         # Verificar si hay solicitud de explosión
         if "explosion_request" in blackboard:
             if self.game:
-                # TODO: Implementar en game
-                print(f"Solicitud de explosión: {blackboard['explosion_request']}")
+                req = blackboard["explosion_request"]
+                self.game.create_explosion(req["position"].x, req["position"].y, 
+                                         req["radius"], req["damage"])
             del blackboard["explosion_request"]
             
         # Verificar si hay solicitud de refuerzos
         if "reinforcements_called" in blackboard and blackboard["reinforcements_called"]:
             if self.game:
-                # TODO: Implementar spawn de refuerzos
-                print(f"Solicitud de refuerzos en: {blackboard.get('reinforcements_position')}")
+                # Implementar spawn de refuerzos
+                reinforcement_pos = blackboard.get('reinforcements_position', self.pos)
+                # Generar 2-3 soldados cerca
+                for i in range(random.randint(2, 3)):
+                    spawn_angle = random.uniform(0, math.pi * 2)
+                    spawn_distance = random.uniform(100, 150)
+                    spawn_x = reinforcement_pos[0] + math.cos(spawn_angle) * spawn_distance
+                    spawn_y = reinforcement_pos[1] + math.sin(spawn_angle) * spawn_distance
+                    
+                    # Mantener dentro de la pantalla
+                    spawn_x = max(50, min(SCREEN_WIDTH - 50, spawn_x))
+                    spawn_y = max(50, min(SCREEN_HEIGHT - 50, spawn_y))
+                    
+                    self.game.spawn_enemy(spawn_x, spawn_y, EnemyType.SOLDIER)
+                
+                print(f"¡Refuerzos llamados por {self.enemy_type}!")
             blackboard["reinforcements_called"] = False
     
     def draw_debug(self, screen):
-        """Dibuja información de debug"""
+        """Dibuja información de debug mejorada"""
         # Dibujar path
         if self.path and len(self.path) > 1:
             points = []
@@ -343,7 +504,7 @@ class Enemy(pygame.sprite.Sprite):
                 world_y = y * TILE_SIZE + TILE_SIZE // 2
                 points.append((world_x, world_y))
                 
-            if len(points) >= 2:  # Solo dibujar si hay al menos 2 puntos
+            if len(points) >= 2:
                 pygame.draw.lines(screen, YELLOW, False, points, 2)
         
         # Dibujar rango de visión
@@ -357,23 +518,43 @@ class Enemy(pygame.sprite.Sprite):
                               (int(self.pos.x), int(self.pos.y)), 
                               self.shoot_range, 1)
         
+        # Láser del francotirador
+        if self.enemy_type == EnemyType.SNIPER and self.player and self.can_see_player():
+            # Línea de apuntado con puntos
+            for i in range(0, int(self.pos.distance_to(self.player.pos)), 20):
+                t = i / self.pos.distance_to(self.player.pos)
+                dot_x = self.pos.x + (self.player.pos.x - self.pos.x) * t
+                dot_y = self.pos.y + (self.player.pos.y - self.pos.y) * t
+                pygame.draw.circle(screen, (255, 0, 0), (int(dot_x), int(dot_y)), 2)
+        
         # Mostrar tipo de enemigo
         font = pygame.font.Font(None, 20)
         text = font.render(self.enemy_type, True, WHITE)
-        text_rect = text.get_rect(center=(self.pos.x, self.pos.y - 25))
+        text_rect = text.get_rect(center=(self.pos.x, self.pos.y - 35))
         screen.blit(text, text_rect)
         
-        # Barra de vida
+        # Barra de vida mejorada
         if self.health < self.max_health:
-            bar_width = 40
-            bar_height = 4
-            bar_x = self.pos.x - bar_width // 2
-            bar_y = self.pos.y - 35
+            from scripts.utils.enhanced_visual import VisualEffects
+            VisualEffects.draw_health_bar(
+                screen, 
+                self.pos.x - 20, 
+                self.pos.y - 45,
+                40, 4,
+                self.health, self.max_health,
+                (0, 255, 0), (100, 0, 0)
+            )
+        
+        # Mostrar buffs activos
+        if self.speed_buff > 1.0 or self.accuracy_buff > 1.0 or self.damage_buff > 1.0:
+            buff_text = f"↑"
+            if self.speed_buff > 1.0:
+                buff_text += "S"
+            if self.accuracy_buff > 1.0:
+                buff_text += "A"
+            if self.damage_buff > 1.0:
+                buff_text += "D"
             
-            # Fondo
-            pygame.draw.rect(screen, RED, 
-                           (bar_x, bar_y, bar_width, bar_height))
-            # Vida actual
-            health_width = int((self.health / self.max_health) * bar_width)
-            pygame.draw.rect(screen, GREEN, 
-                           (bar_x, bar_y, health_width, bar_height))
+            buff_surface = font.render(buff_text, True, (255, 215, 0))
+            buff_rect = buff_surface.get_rect(center=(self.pos.x + 25, self.pos.y - 25))
+            screen.blit(buff_surface, buff_rect)

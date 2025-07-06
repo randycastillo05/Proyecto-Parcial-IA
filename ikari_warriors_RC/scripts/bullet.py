@@ -2,6 +2,7 @@ import pygame
 import math
 import os
 from scripts.utils.constants import *
+from scripts.utils.enhance_sprites import EnhancedSprites
 
 class Bullet(pygame.sprite.Sprite):
     """Clase para los proyectiles del juego con sprites mejorados"""
@@ -51,7 +52,7 @@ class Bullet(pygame.sprite.Sprite):
             else:
                 # Generar sprite si no existe
                 print("⚠ Generando sprite de bala...")
-                from enhance_sprites import EnhancedSprites
+                from ikari_warriors_RC.scripts.utils.enhance_sprites import EnhancedSprites
                 self.original_image = EnhancedSprites.create_detailed_bullet(12)
                 
                 # Guardar para uso futuro
@@ -181,7 +182,7 @@ class Explosion(pygame.sprite.Sprite):
                     self.explosion_frames.append(frame)
                 else:
                     # Generar frame si no existe
-                    from enhance_sprites import EnhancedSprites
+                    from ikari_warriors_RC.scripts.utils.enhance_sprites import EnhancedSprites
                     frames = EnhancedSprites.create_explosion_animation(8, self.max_radius * 2)
                     self.explosion_frames = frames
                     
@@ -313,7 +314,7 @@ class PowerUp(pygame.sprite.Sprite):
             else:
                 # Generar sprite si no existe
                 print(f"⚠ Generando sprite de power-up {self.powerup_type}...")
-                from enhance_sprites import EnhancedSprites
+                from ikari_warriors_RC.scripts.utils.enhance_sprites import EnhancedSprites
                 self.original_image = EnhancedSprites.create_detailed_powerup(self.powerup_type, 32)
                 
                 # Guardar para uso futuro

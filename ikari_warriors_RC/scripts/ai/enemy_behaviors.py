@@ -1,5 +1,9 @@
 from scripts.ai.behavior_tree import *
+from scripts.ai.enemy_actions import *
 from scripts.utils.constants import EnemyType, SCREEN_WIDTH, SCREEN_HEIGHT
+from scripts.ai.enemy_actions import *
+from scripts.utils.constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from scripts.ai.enemy_actions import *
 
 class EnemyBehaviorFactory:
     """Factory para crear árboles de comportamiento según el tipo de enemigo"""
