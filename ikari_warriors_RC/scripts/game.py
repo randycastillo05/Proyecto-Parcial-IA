@@ -47,12 +47,12 @@ class Game:
         self.init_gamepad()
         
         # Debug
-        self.show_debug_info = True
-        self.show_pathfinding = True
+        self.show_debug_info = False
+        self.show_pathfinding = False
         
         # Efectos visuales
-        self.screen_shake_amount = 0
-        self.screen_shake_duration = 0
+        self.screen_shake_amount = 5
+        self.screen_shake_duration = 5
         
         # Generar enemigos iniciales
         self.spawn_initial_enemies()
@@ -79,7 +79,7 @@ class Game:
             self.grid.set_walkable(20, y, False)
         
         # Paredes horizontales
-        for x in range(8, 18):
+        for x in range(10, 20):
             self.grid.set_walkable(x, 8, False)
             self.grid.set_walkable(x, 18, False)
         
@@ -106,7 +106,7 @@ class Game:
     
     def spawn_initial_enemies(self):
         """Genera enemigos iniciales"""
-        for i in range(3):
+        for i in range(10):
             x = random.randint(100, SCREEN_WIDTH - 100)
             y = random.randint(100, SCREEN_HEIGHT - 100)
             
@@ -449,8 +449,7 @@ class Game:
         controls = [
             "WASD/Flechas: Mover",
             "Mouse: Apuntar y disparar",
-            "F1: Toggle debug",
-            "F2: Toggle pathfinding"
+            
         ]
         
         for i, control in enumerate(controls):

@@ -418,10 +418,32 @@ class EnhancedSprites:
         except Exception as e:
             print(f"❌ Error guardando sprites: {e}")
 
-# Función de conveniencia
 def generate_enhanced_sprites():
     """Genera todos los sprites mejorados"""
+    
+    # IMPORTANTE: Inicializar Pygame y el display si no se ha hecho
+    if not pygame.get_init():
+        pygame.init()
+    
+    # Crear una superficie de display dummy o real para asegurar el contexto gráfico
+    # No es necesario que se vea, solo que exista para las operaciones de dibujo.
+    # Puedes usar un tamaño pequeño si no quieres una ventana visible.
+    try:
+        # Intenta establecer un modo de video oculto si es posible
+        # pygame.FULLSCREEN | pygame.HIDDEN podría funcionar en algunos sistemas,
+        # o simplemente un tamaño muy pequeño y sin flip.
+        screen = pygame.display.set_mode((1, 1), pygame.HIDDEN) 
+    except pygame.error:
+        # Si HIDDEN no funciona, crea una ventana normal pero que se cierre rápido
+        screen = pygame.display.set_mode((100, 100)) # Un tamaño pequeño
+        pygame.display.iconify() # Minimizar la ventana
+        print("Advertencia: Se creó una pequeña ventana Pygame temporal para la generación de sprites.")
+
     EnhancedSprites.save_all_enhanced_sprites()
+    
+    # Quitar el display de Pygame después de generar los sprites si lo creaste solo para esto
+    pygame.display.quit()
+    pygame.quit() # Opcional, pero limpia completamente Pygame
 
 if __name__ == "__main__":
     generate_enhanced_sprites()

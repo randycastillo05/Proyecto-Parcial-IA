@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
-"""
-Ikari Warriors Clone
-Autor: [Tu nombre y matrícula aquí]
-Un juego de acción top-down inspirado en Ikari Warriors
-"""
+
 
 import pygame
 import sys
 import os
 
-# Agregar el directorio raíz al path para imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from scripts.game import Game
@@ -57,11 +52,9 @@ class IkariWarriorsGame:
             SpriteGenerator.save_all_sprites()
         
     def init_music(self):
-        """Inicializa la música del juego"""
-        # TODO: Cargar música real
-        # pygame.mixer.music.load("assets/music/menu_theme.mp3")
-        # pygame.mixer.music.set_volume(0.5)
-        # pygame.mixer.music.play(-1)  # Loop infinito
+        pygame.mixer.music.load("assets/music/fondo.mp3")
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)  
         pass
     
     def new_game(self):
@@ -70,8 +63,8 @@ class IkariWarriorsGame:
         self.current_state = GameState.PLAYING
         
         # TODO: Cambiar música
-        # pygame.mixer.music.load("assets/music/game_theme.mp3")
-        # pygame.mixer.music.play(-1)
+        pygame.mixer.music.load("assets/music/fondo.mp3")
+        pygame.mixer.music.play(-1)
     
     def handle_events(self):
         """Maneja los eventos globales"""
@@ -81,8 +74,6 @@ class IkariWarriorsGame:
             if event.type == pygame.QUIT:
                 self.running = False
                 return []
-            
-            # Eventos específicos del estado actual
             if self.current_state == GameState.MENU:
                 action = self.menu.handle_event(event)
                 if action == "start":
@@ -90,7 +81,6 @@ class IkariWarriorsGame:
                 elif action == "quit":
                     self.running = False
                     return []
-                    
             elif self.current_state == GameState.PLAYING:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
@@ -115,24 +105,17 @@ class IkariWarriorsGame:
         return events
     
     def update(self):
-        """Actualiza la lógica del juego"""
-        # Obtener eventos
         events = self.handle_events()
-        
-        # Actualizar según el estado
         if self.current_state == GameState.MENU:
             self.menu.update(self.dt)
             
         elif self.current_state == GameState.PLAYING:
             if self.game:
                 self.game.update(self.dt, events)
-                
-                # Verificar cambio de estado
                 if self.game.state == GameState.GAME_OVER:
                     self.current_state = GameState.GAME_OVER
                     
         elif self.current_state == GameState.PAUSED:
-            # No actualizar nada cuando está pausado
             pass
     
     def draw(self):
