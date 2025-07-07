@@ -914,9 +914,6 @@ class AkariWarrior:
             "Stick Der - Apuntar y disparar",
             "Botones ABXY - Disparar direccional",
             "Start - Pausa",
-            "",
-            "¡Coloca sprites en assets/images/ y sonidos en assets/sounds/!",
-            "",
             "¡Sobrevive a las waves enemigas!",
             "",
             "PRESIONA ESPACIO o A PARA COMENZAR"
