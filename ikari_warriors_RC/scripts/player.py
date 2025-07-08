@@ -1,4 +1,5 @@
 """
+Randy Castillo
 Módulo del Jugador
 Contiene la clase Player que representa al jugador
 """
@@ -162,7 +163,7 @@ class Player(pygame.sprite.Sprite):
             
             # Sonido de disparo
             try:
-                sound = pygame.mixer.Sound("assets/sounds/shoot.wav")
+                sound = pygame.mixer.Sound("assets/sounds/fw_01.0gg")
                 sound.set_volume(0.3)
                 sound.play()
             except:

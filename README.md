@@ -1,7 +1,7 @@
 # Proyecto-parcial-IA
 
-## Nombre
+## Randy Castillo
 
-## Matrícula
+## 21-EISN-2-007
 
-## Proyecto
+## Ikari Warrior clone 

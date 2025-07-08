@@ -1,4 +1,5 @@
 """
+Randy Castillo
 Módulo de Enemigos con IA
 Contiene la clase Enemy con Árbol de Comportamiento y A*
 """
